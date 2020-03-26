@@ -1,0 +1,72 @@
+version: '3.7'
+
+x-sentry-common: &common
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - sentry
+
+services:
+  postgres:
+    image: postgres:9.6
+    container_name: postgres
+    restart: always
+    << : *common
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "cG9zdGdyZXMK"
+      POSTGRES_DB: "postgres"
+    volumes:
+      - /data/postgresql:/var/lib/postgresql
+      - ./sentry.sh:/docker-entrypoint-initdb.d/sentry.sh
+    expose:
+      - "5432"
+
+  redis:
+    image: redis:5.0.8
+    container_name: redis
+    restart: always
+    << : *common
+    expose:
+      - "6379"
+    volumes:
+      - ./redis.conf:/etc/redis/redis-server.conf
+    command: ["redis-server", "/etc/redis/redis-server.conf"]
+    sysctls:
+      net.core.somaxconn: 1024
+      net.ipv4.tcp_syncookies: 1
+      net.ipv4.tcp_max_syn_backlog: 8192
+
+  sentry:
+    image: tuananh170489/sentry-full:10
+    container_name: sentry
+    restart: always
+    << : *common
+    environment:
+      SENTRY_ENVIRONMENT: "production"
+      SENTRY_DB_NAME: "sentry"
+      SENTRY_DB_USER: "sentry"
+      SENTRY_DB_PASSWORD: "c2VudHJ5Cg=="
+      SENTRY_DB_HOST: "postgres"
+      SENTRY_DB_PORT: "5432"
+      SENTRY_REDIS_HOST: "redis"
+      SENTRY_LOG_LEVEL: "WARNING"
+      SENTRY_EVENT_RETENTION_DAYS: "7"
+      SENTRY_SECRET_KEY: "ae1d688fe60abb726cb0b10e58b23ca4"
+      SENTRY_USERNAME: "fwork"
+      SENTRY_PASSWORD: "FWork@123"
+      SENTRY_SUPERUSER: "true"
+    depends_on:
+     - redis
+     - postgres
+    links:
+     - redis
+     - postgres
+    volumes:
+      - /data/sentry:/data
+    ports:
+      - "9000:9000"
+
+networks:
+  sentry:
